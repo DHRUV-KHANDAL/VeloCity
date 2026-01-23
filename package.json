@@ -1,0 +1,25 @@
+{
+  "name": "velocity-fullstack",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "workspaces": [
+    "Frontend",
+    "Backend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n \"BACKEND,FRONTEND\" -c \"bgBlue.bold,bgGreen.bold\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd Frontend && npm run dev",
+    "dev:backend": "cd Backend && npm run dev",
+    "build:frontend": "cd Frontend && npm run build",
+    "build:backend": "cd Backend && npm run build",
+    "install:all": "node install-all.js",
+    "clean": "rimraf node_modules Frontend/node_modules Backend/node_modules",
+    "fix-vscode": "node fix-vscode-issues.js",
+    "schema-fix": "node schema-fix.js"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "rimraf": "^6.1.2"
+  }
+}

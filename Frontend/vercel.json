@@ -1,0 +1,21 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "env": {
+    "VITE_API_URL": "@api_url",
+    "VITE_WS_URL": "@ws_url"
+  },
+  "envPrefix": "VITE_",
+  "regions": ["sfo1", "iad1"],
+  "functions": {
+    "api": {
+      "memory": 1024,
+      "maxDuration": 300
+    }
+  },
+  "github": {
+    "enabled": true,
+    "productionBranch": "main",
+    "autoDeployOnPush": true
+  }
+}
