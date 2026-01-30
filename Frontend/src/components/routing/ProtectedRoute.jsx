@@ -12,7 +12,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Checking authentication...</p>
+          <p className="text-gray-600">Verifying access...</p>
         </div>
       </div>
     );
@@ -31,7 +31,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
           <p className="text-gray-600 mb-6">
-            You don't have permission to access this page. This area is for {requiredRole}s only.
+            You don't have permission to access this page. This area is reserved for <span className="font-bold capitalize">{requiredRole}s</span> only.
           </p>
           <div className="space-y-3">
             <button
@@ -44,7 +44,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
               onClick={() => window.location.href = '/'}
               className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
             >
-              Go to Home
+              Return Home
             </button>
           </div>
         </div>

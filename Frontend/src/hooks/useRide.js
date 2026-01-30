@@ -1,109 +1,117 @@
 ﻿// src/hooks/useRide.js
-import { useState, useCallback } from 'react';
-import  useAuth  from './useAuth';
-import toast from 'react-hot-toast';
+import { useState, useCallback, useMemo } from 'react';
+import useAuth from './useAuth';
+import api from '../utils/api';
 
 const useRide = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { apiCall } = useAuth();
+  const [rideData, setRideData] = useState(null);
 
-  const bookRide = useCallback(async (rideData) => {
+  const apiCallMemo = useMemo(() => api, []);
+
+  const bookRide = useCallback(async (rideRequestData) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await apiCall('POST', '/rides/request', rideData);
+      const response = await apiCallMemo.post('/rides/request', rideRequestData);
       
       if (response.success) {
-        toast.success('Ride booked successfully!');
+        setRideData(response.data.ride);
         return { success: true, ride: response.data.ride };
       } else {
-        toast.error(response.error || 'Failed to book ride');
-        return { success: false, error: response.error };
+        const errorMsg = response.error || 'Failed to book ride';
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
       }
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Network error';
-      toast.error(errorMessage);
+      const errorMessage = err.error || err.message || 'Network error';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
-  }, [apiCall]);
+  }, [apiCallMemo]);
 
   const cancelRide = useCallback(async (rideId) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await apiCall('POST', `/rides/${rideId}/cancel`);
+      const response = await apiCallMemo.post(`/rides/${rideId}/cancel`);
       
       if (response.success) {
-        toast.success('Ride cancelled successfully');
+        setRideData(null);
         return { success: true };
       } else {
-        toast.error(response.error || 'Failed to cancel ride');
-        return { success: false, error: response.error };
+        const errorMsg = response.error || 'Failed to cancel ride';
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
       }
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Network error';
-      toast.error(errorMessage);
+      const errorMessage = err.error || err.message || 'Network error';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
-  }, [apiCall]);
+  }, [apiCallMemo]);
 
   const getRideHistory = useCallback(async (type = 'all', page = 1, limit = 10) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await apiCall('GET', `/rides/history/${type}?page=${page}&limit=${limit}`);
+      const response = await apiCallMemo.get(`/rides/history/${type}?page=${page}&limit=${limit}`);
       
       if (response.success) {
         return { success: true, data: response.data };
       } else {
-        return { success: false, error: response.error };
+        const errorMsg = response.error || 'Failed to fetch ride history';
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
       }
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Network error';
+      const errorMessage = err.error || err.message || 'Network error';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
-  }, [apiCall]);
+  }, [apiCallMemo]);
 
   const rateRide = useCallback(async (rideId, rating, comment = '') => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await apiCall('POST', `/rides/${rideId}/rate`, { rating, comment });
+      if (!rating || rating < 1 || rating > 5) {
+        throw new Error('Rating must be between 1 and 5');
+      }
+
+      const response = await apiCallMemo.post(`/rides/${rideId}/rate`, { rating, comment });
       
       if (response.success) {
-        toast.success('Rating submitted successfully!');
         return { success: true };
       } else {
-        toast.error(response.error || 'Failed to submit rating');
-        return { success: false, error: response.error };
+        const errorMsg = response.error || 'Failed to submit rating';
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
       }
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Network error';
-      toast.error(errorMessage);
+      const errorMessage = err.error || err.message || 'Network error';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
-  }, [apiCall]);
+  }, [apiCallMemo]);
 
   return {
     loading,
     error,
+    rideData,
     bookRide,
     cancelRide,
     getRideHistory,

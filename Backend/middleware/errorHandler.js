@@ -1,11 +1,11 @@
+// src/middleware/errorHandler.js
 import ErrorResponse from '../utils/errorResponse.js';
 import logger from '../utils/logger.js';
 
-const errorHandler = (err, req, res, next) => {
+export const errorHandler = (err, req, res, next) => {
   let error = { ...err };
   error.message = err.message;
 
-  // Log error
   logger.error({
     message: err.message,
     stack: err.stack,
@@ -14,26 +14,22 @@ const errorHandler = (err, req, res, next) => {
     ip: req.ip
   });
 
-  // Mongoose bad ObjectId
   if (err.name === 'CastError') {
     const message = 'Resource not found';
     error = new ErrorResponse(message, 404);
   }
 
-  // Mongoose duplicate key
   if (err.code === 11000) {
     const field = Object.keys(err.keyValue)[0];
     const message = `Duplicate field value entered for ${field}`;
     error = new ErrorResponse(message, 400);
   }
 
-  // Mongoose validation error
   if (err.name === 'ValidationError') {
     const message = Object.values(err.errors).map(val => val.message).join(', ');
     error = new ErrorResponse(message, 400);
   }
 
-  // JWT errors
   if (err.name === 'JsonWebTokenError') {
     const message = 'Invalid token';
     error = new ErrorResponse(message, 401);
@@ -51,4 +47,8 @@ const errorHandler = (err, req, res, next) => {
   });
 };
 
-export { errorHandler };
+export const asyncHandler = (fn) => (req, res, next) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
+
+export default errorHandler;

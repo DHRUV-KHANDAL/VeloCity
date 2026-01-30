@@ -2,16 +2,14 @@
 import axios from 'axios';
 import { API_BASE_URL } from './constants.js';
 
-// Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
   },
-  timeout: 10000 // 10 second timeout
+  timeout: 10000
 });
 
-// Request interceptor - add auth token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -25,23 +23,19 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor - handle errors
 api.interceptors.response.use(
   (response) => {
     return response.data;
   },
   (error) => {
-    // Handle 401 Unauthorized
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      // Redirect to login if not already there
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }
     }
     
-    // Return error response
     return Promise.reject({
       success: false,
       error: error.response?.data?.error || error.message || 'Network error',
@@ -50,7 +44,6 @@ api.interceptors.response.use(
   }
 );
 
-// API methods
 export const apiMethods = {
   get: (url, config = {}) => api.get(url, config),
   post: (url, data, config = {}) => api.post(url, data, config),

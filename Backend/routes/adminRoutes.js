@@ -7,6 +7,7 @@ import adminController from "../controllers/adminController.js";
 import auth from "../middleware/auth.js";
 import { adminOnly } from "../middleware/validation.js";
 
+
 const router = express.Router();
 
 /**
@@ -57,5 +58,11 @@ router.post(
   adminAuth,
   adminController.recordCashCollection,
 );
+router.get("/admin", adminOnly, (req, res, next) => {
+  // Use the req, res, and next variables here
+  console.log("Request:", req.method);
+  console.log("Response:", res.statusCode);
+  next();
+});
 
 export default router;
