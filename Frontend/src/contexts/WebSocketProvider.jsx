@@ -1,27 +1,36 @@
 // src/contexts/WebSocketProvider.jsx
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { WebSocketContext } from './WebSocketContext';
+import React, { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react';
+
+const WebSocketContext = createContext(null);
+
+export const useWebSocket = () => {
+  const context = useContext(WebSocketContext);
+  if (!context) {
+    throw new Error('useWebSocket must be used within a WebSocketProvider');
+  }
+  return context;
+};
 
 export const WebSocketProvider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [message, setMessage] = useState(null);
-  const wsRef = useRef(null);
-  const reconnectAttempts = useRef(0);
-  const reconnectTimeoutRef = useRef(null);
-  const isInitialMount = useRef(true);
-  const hasInitialized = useRef(false);
-  const setupWebSocketRef = useRef(null); // ✅ NEW: Store reference to setupWebSocket
+  const [error, setError] = useState(null);
   
+  const wsRef = useRef(null);
+  const reconnectAttemptsRef = useRef(0);
+  const reconnectTimeoutRef = useRef(null);
+  const setupWebSocketRef = useRef(null);
+  const isInitialMount = useRef(true);
+
   const maxReconnectAttempts = 5;
   const initialReconnectDelay = 3000;
 
-  // ✅ FIX: Define reconnect logic separately to avoid circular reference
   const handleReconnect = useCallback((token) => {
-    if (reconnectAttempts.current < maxReconnectAttempts && setupWebSocketRef.current) {
-      reconnectAttempts.current += 1;
-      const delay = initialReconnectDelay * Math.pow(2, reconnectAttempts.current - 1);
+    if (reconnectAttemptsRef.current < maxReconnectAttempts && setupWebSocketRef.current) {
+      reconnectAttemptsRef.current += 1;
+      const delay = initialReconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1);
       
-      console.log(`🔄 Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current}/${maxReconnectAttempts})`);
+      console.log(`🔄 Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
       
       reconnectTimeoutRef.current = setTimeout(() => {
         if (setupWebSocketRef.current && token) {
@@ -29,12 +38,9 @@ export const WebSocketProvider = ({ children }) => {
           setupWebSocketRef.current(wsUrl);
         }
       }, delay);
-    } else if (reconnectAttempts.current >= maxReconnectAttempts) {
-      console.error('❌ Max reconnection attempts reached. Please refresh the page.');
     }
   }, [maxReconnectAttempts, initialReconnectDelay]);
 
-  // ✅ FIX: Define setupWebSocket without circular dependency
   const setupWebSocket = useCallback((url) => {
     try {
       console.log('📡 Attempting WebSocket connection:', url.split('?')[0] + '?token=***');
@@ -45,7 +51,8 @@ export const WebSocketProvider = ({ children }) => {
       ws.onopen = () => {
         console.log('✅ WebSocket connected successfully');
         setIsConnected(true);
-        reconnectAttempts.current = 0;
+        setError(null);
+        reconnectAttemptsRef.current = 0;
         
         ws.send(JSON.stringify({
           type: 'authenticate',
@@ -66,13 +73,14 @@ export const WebSocketProvider = ({ children }) => {
       ws.onerror = (error) => {
         console.error('❌ WebSocket error:', error);
         setIsConnected(false);
+        setError('Connection error');
       };
 
       ws.onclose = (event) => {
         console.log(`🔌 WebSocket closed - Code: ${event.code}, Reason: ${event.reason}`);
         setIsConnected(false);
 
-        if (event.code !== 1000) {
+        if (event.code !== 1000 && event.code !== 1001) {
           const token = localStorage.getItem('token');
           if (token) {
             handleReconnect(token);
@@ -82,25 +90,24 @@ export const WebSocketProvider = ({ children }) => {
     } catch (err) {
       console.error('❌ Error creating WebSocket:', err);
       setIsConnected(false);
+      setError(err.message);
     }
-  }, [handleReconnect]); // ✅ Only depends on handleReconnect, not itself
+  }, [handleReconnect]);
 
-  // ✅ Update ref after setupWebSocket is defined
   useEffect(() => {
     setupWebSocketRef.current = setupWebSocket;
   }, [setupWebSocket]);
 
-  // ✅ FIX: Connect function
   const connect = useCallback(() => {
     const token = localStorage.getItem('token');
     
     if (!token) {
-      console.warn('⚠️  No authentication token available');
+      console.warn('⚠️ No authentication token available');
       return;
     }
 
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      console.log('ℹ️  WebSocket already connected');
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('ℹ️ WebSocket already connected');
       return;
     }
 
@@ -110,9 +117,8 @@ export const WebSocketProvider = ({ children }) => {
 
     const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:5000'}?token=${token}`;
     setupWebSocket(wsUrl);
-  }, [setupWebSocket]); // ✅ Proper dependency
+  }, [setupWebSocket]);
 
-  // ✅ FIX: Disconnect function
   const disconnect = useCallback(() => {
     if (wsRef.current) {
       wsRef.current.close(1000, 'User initiated disconnect');
@@ -124,13 +130,35 @@ export const WebSocketProvider = ({ children }) => {
       clearTimeout(reconnectTimeoutRef.current);
     }
 
-    reconnectAttempts.current = 0;
+    reconnectAttemptsRef.current = 0;
     console.log('🛑 WebSocket disconnected');
   }, []);
 
-  // ✅ FIX: Send message function
+  useEffect(() => {
+    if (!isInitialMount.current) {
+      return;
+    }
+
+    isInitialMount.current = false;
+
+    const token = localStorage.getItem('token');
+    if (token) {
+      const connectionTimer = setTimeout(() => {
+        connect();
+      }, 500);
+
+      return () => clearTimeout(connectionTimer);
+    }
+  }, [connect]);
+
+  useEffect(() => {
+    return () => {
+      disconnect();
+    };
+  }, [disconnect]);
+
   const sendMessage = useCallback((msg) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
       try {
         wsRef.current.send(JSON.stringify(msg));
         console.log('📤 Sent:', msg.type);
@@ -138,35 +166,9 @@ export const WebSocketProvider = ({ children }) => {
         console.error('❌ Failed to send message:', err);
       }
     } else {
-      console.warn('⚠️  WebSocket not connected. Message queued:', msg.type);
+      console.warn('⚠️ WebSocket not connected. Message queued:', msg.type);
     }
   }, []);
-
-  // ✅ FIX: Initialization effect with connect in dependency array
-  useEffect(() => {
-    if (!isInitialMount.current || hasInitialized.current) {
-      return;
-    }
-
-    hasInitialized.current = true;
-    isInitialMount.current = false;
-
-    const token = localStorage.getItem('token');
-    if (token) {
-      const connectionTimer = setTimeout(() => {
-        connect(); // ✅ Now connect is included in dependencies
-      }, 0);
-
-      return () => clearTimeout(connectionTimer);
-    }
-  }, [connect]); // ✅ FIX: Include connect dependency
-
-  // ✅ FIX: Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      disconnect();
-    };
-  }, [disconnect]);
 
   const value = {
     isConnected,
@@ -174,7 +176,8 @@ export const WebSocketProvider = ({ children }) => {
     sendMessage,
     connect,
     disconnect,
-    reconnect: connect
+    reconnect: connect,
+    error
   };
 
   return (

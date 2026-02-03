@@ -1,7 +1,15 @@
-// src/contexts/ThemeContext.jsx
-import React, { createContext, useState, useCallback, useEffect } from 'react';
+// src/contexts/ThemeProvider.jsx
+import React, { useState, useCallback, useEffect, createContext, useContext } from 'react';
 
-export const ThemeContext = createContext();
+const ThemeContext = createContext();
+
+export const useTheme = () => {
+  const context = useContext(ThemeContext);
+  if (!context) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
+};
 
 export const ThemeProvider = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -34,4 +42,4 @@ export const ThemeProvider = ({ children }) => {
   );
 };
 
-export default ThemeContext;
+export default ThemeProvider;

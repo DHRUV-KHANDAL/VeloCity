@@ -1,166 +1,190 @@
 // src/components/driver/FakeRideModal.jsx
-import React from "react";
-import { X, MapPin, Clock, DollarSign, User, Phone } from "lucide-react";
+import React, { useEffect, useRef, useState } from 'react';
+import { X, MapPin, Clock, DollarSign, User, Zap, CheckCircle } from 'lucide-react';
 
-const FakeRideModal = ({ ride, onAccept, onDecline, onClose, hasActiveRide = false }) => {
-  if (!ride) return null;
+const FakeRideModal = ({ 
+  ride, 
+  onAccept, 
+  onDecline, 
+  isAccepted = false,
+  isVisible = true 
+}) => {
+  const [isAnimating, setIsAnimating] = useState(false);
+  const rideRef = useRef(null);
+  const timeoutsRef = useRef([]);
 
-  // ✅ Conditional classes based on active ride status
-  const overlayClasses = hasActiveRide 
-    ? "fixed bottom-4 right-4 z-40" // ✅ Side panel when riding
-    : "fixed inset-0 z-50 flex items-center justify-center"; // ✅ Full screen when idle
+  useEffect(() => {
+    rideRef.current = ride;
+  }, [ride]);
 
-  const modalClasses = hasActiveRide
-    ? "bg-white rounded-xl shadow-2xl max-w-sm w-96 transform transition-all animate-slide-in-right"
-    : "bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all animate-slide-up";
+  useEffect(() => {
+    if (!ride || !isVisible) {
+      const timer = setTimeout(() => {
+        setIsAnimating(false);
+      }, 0);
+      timeoutsRef.current.push(timer);
+      return () => {
+        timeoutsRef.current.forEach(t => clearTimeout(t));
+        timeoutsRef.current = [];
+      };
+    }
 
-  const overlayBg = hasActiveRide
-    ? "" // ✅ No background overlay on side
-    : "bg-black bg-opacity-60 backdrop-blur-sm"; // ✅ Dark overlay when full screen
+    const showTimer = setTimeout(() => {
+      setIsAnimating(true);
+    }, 0);
+    timeoutsRef.current.push(showTimer);
+
+    return () => {
+      timeoutsRef.current.forEach(t => clearTimeout(t));
+      timeoutsRef.current = [];
+    };
+  }, [ride, isVisible]);
+
+  if (!ride || !isVisible) return null;
 
   return (
-    <div className={`${overlayClasses} ${overlayBg}`}>
-      <style>{`
-        @keyframes slideInRight {
-          from {
-            opacity: 0;
-            transform: translateX(400px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
+    <>
+      {/* Overlay */}
+      <div 
+        className={`fixed inset-0 z-40 transition-opacity duration-300 ${
+          isAnimating && !isAccepted ? 'bg-black/20 backdrop-blur-sm opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+      />
 
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px) scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-
-        @keyframes pulse {
-          0%, 100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.7;
-          }
-        }
-
-        .animate-slide-in-right {
-          animation: slideInRight 0.3s ease-out;
-        }
-
-        .animate-slide-up {
-          animation: slideUp 0.3s ease-out;
-        }
-
-        .pulse-ring {
-          animation: pulse 2s ease-in-out infinite;
-        }
-      `}</style>
-
-      <div className={modalClasses}>
-        {/* Header */}
-        <div className={`${hasActiveRide ? 'bg-gradient-to-r from-cyan-500 to-blue-600' : 'bg-gradient-to-r from-cyan-500 to-blue-600'} text-white p-4 rounded-t-xl flex items-center justify-between`}>
-          <div className="flex items-center gap-3">
-            <div className={`${hasActiveRide ? 'h-10 w-10' : 'h-12 w-12'} rounded-full bg-white bg-opacity-20 flex items-center justify-center animate-pulse`}>
-              <User className={`${hasActiveRide ? 'h-5 w-5' : 'h-6 w-6'} text-white`} />
+      {/* Modal Card */}
+      <div 
+        className={`fixed z-50 transition-all duration-300 transform ${
+          isAccepted 
+            ? 'bottom-4 right-4 w-48 h-20 opacity-90' 
+            : 'bottom-1/2 right-1/2 translate-x-1/2 translate-y-1/2 w-96 opacity-100'
+        } ${
+          isAnimating ? 'scale-100' : 'scale-95'
+        }`}
+      >
+        {!isAccepted ? (
+          // Full Ride Request Card
+          <div className="bg-white rounded-xl shadow-2xl overflow-hidden border-l-4 border-cyan-500">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-grow">
+                <div className="h-10 w-10 rounded-full bg-white/30 flex items-center justify-center animate-pulse">
+                  <User className="h-5 w-5 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-sm">New Ride Request!</p>
+                  <p className="text-xs text-cyan-100">Near your location</p>
+                </div>
+              </div>
+              <button
+                onClick={onDecline}
+                className="text-white hover:bg-white/20 p-1 rounded-lg transition-colors flex-shrink-0"
+                title="Dismiss"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <div>
-              <p className={`font-bold ${hasActiveRide ? 'text-sm' : 'text-lg'}`}>New Ride Request</p>
-              <p className={`${hasActiveRide ? 'text-xs' : 'text-sm'} opacity-90`}>Near your location</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-1 transition-colors"
-          >
-            <X className={hasActiveRide ? 'h-4 w-4' : 'h-5 w-5'} />
-          </button>
-        </div>
 
-        {/* Body */}
-        <div className={`p-${hasActiveRide ? '4' : '6'} space-y-${hasActiveRide ? '3' : '4'}`}>
-          {/* Passenger Info */}
-          <div className={`flex items-center gap-3 pb-${hasActiveRide ? '3' : '4'} border-b border-gray-200`}>
-            <div className={`${hasActiveRide ? 'h-10 w-10' : 'h-12 w-12'} rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-white font-bold`}>
-              {ride.rider?.name?.[0] || "?"}
-            </div>
-            <div className="flex-grow">
-              <p className={`font-bold text-gray-900 ${hasActiveRide ? 'text-sm' : 'text-lg'}`}>
-                {ride.rider?.name || "Rider"}
-              </p>
-              <p className={`text-gray-600 ${hasActiveRide ? 'text-xs' : 'text-sm'}`}>
-                {ride.rider?.phone || "Phone hidden"}
-              </p>
-            </div>
-          </div>
+            {/* Body */}
+            <div className="p-4 space-y-3">
+              {/* Passenger Info */}
+              <div className="flex items-center gap-3 pb-3 border-b border-gray-200">
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                  {ride.rider?.name?.[0] || '?'}
+                </div>
+                <div className="min-w-0 flex-grow">
+                  <p className="font-bold text-gray-900 text-sm">{ride.rider?.name || 'Rider'}</p>
+                  <p className="text-gray-600 text-xs">{ride.rider?.phone || '📞'}</p>
+                </div>
+                <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold flex-shrink-0">
+                  {ride.rating || '4.8★'}
+                </span>
+              </div>
 
-          {/* Details */}
-          <div className={`space-y-${hasActiveRide ? '2' : '3'}`}>
-            {/* Pickup */}
-            <div className="flex items-start gap-3">
-              <MapPin className={`h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0 ${hasActiveRide ? 'h-4 w-4' : ''}`} />
-              <div>
-                <p className={`font-medium text-gray-900 ${hasActiveRide ? 'text-xs' : 'text-sm'}`}>Pickup</p>
-                <p className={`text-gray-600 ${hasActiveRide ? 'text-xs' : 'text-sm'}`}>
-                  {ride.pickupLocation?.address || "Address not provided"}
-                </p>
+              {/* Route */}
+              <div className="space-y-2 text-sm">
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 text-xs">Pickup</p>
+                    <p className="text-gray-600 break-words text-xs">{ride.pickupLocation?.address || 'Address not provided'}</p>
+                  </div>
+                </div>
+
+                {ride.dropoffLocation?.address && (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900 text-xs">Dropoff</p>
+                      <p className="text-gray-600 break-words text-xs">{ride.dropoffLocation.address}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Trip Info Grid */}
+              <div className="grid grid-cols-3 gap-2 p-2 bg-gray-50 rounded-lg">
+                <div className="text-center">
+                  <Clock className="h-3 w-3 text-gray-400 mx-auto mb-0.5" />
+                  <p className="text-xs text-gray-600">Time</p>
+                  <p className="font-bold text-gray-900 text-xs">{ride.estimatedDuration || 5} min</p>
+                </div>
+                <div className="text-center">
+                  <MapPin className="h-3 w-3 text-gray-400 mx-auto mb-0.5" />
+                  <p className="text-xs text-gray-600">Distance</p>
+                  <p className="font-bold text-gray-900 text-xs">{ride.distance || '5'} km</p>
+                </div>
+                <div className="text-center">
+                  <DollarSign className="h-3 w-3 text-gray-400 mx-auto mb-0.5" />
+                  <p className="text-xs text-gray-600">Fare</p>
+                  <p className="font-bold text-green-600 text-xs">${ride.fare?.total || '12.50'}</p>
+                </div>
+              </div>
+
+              {/* Ride Type & Rating */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2 bg-blue-50 rounded text-center">
+                  <p className="text-xs text-gray-600">Type</p>
+                  <p className="font-bold text-gray-900 text-xs">{ride.rideType || 'Standard'}</p>
+                </div>
+                <div className="p-2 bg-yellow-50 rounded text-center">
+                  <p className="text-xs text-gray-600">Rating</p>
+                  <p className="font-bold text-gray-900 text-xs">{ride.rating || '4.9★'}</p>
+                </div>
               </div>
             </div>
 
-            {/* ETA */}
-            <div className="flex items-start gap-3">
-              <Clock className={`h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0 ${hasActiveRide ? 'h-4 w-4' : ''}`} />
-              <div>
-                <p className={`font-medium text-gray-900 ${hasActiveRide ? 'text-xs' : 'text-sm'}`}>ETA</p>
-                <p className={`text-gray-600 ${hasActiveRide ? 'text-xs' : 'text-sm'}`}>
-                  {ride.estimatedDuration || 5} min
-                </p>
-              </div>
-            </div>
-
-            {/* Fare */}
-            <div className="flex items-start gap-3">
-              <DollarSign className={`h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0 ${hasActiveRide ? 'h-4 w-4' : ''}`} />
-              <div>
-                <p className={`font-medium text-gray-900 ${hasActiveRide ? 'text-xs' : 'text-sm'}`}>Fare</p>
-                <p className={`font-bold text-green-600 ${hasActiveRide ? 'text-sm' : 'text-lg'}`}>
-                  ${ride.fare?.total || "12.50"}
-                </p>
-              </div>
+            {/* Action Buttons */}
+            <div className="bg-gray-50 px-4 py-3 flex gap-2 border-t">
+              <button
+                onClick={onDecline}
+                className="flex-1 py-2 px-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-bold transition-colors text-xs"
+              >
+                ❌ Decline
+              </button>
+              <button
+                onClick={onAccept}
+                className="flex-1 py-2 px-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white rounded-lg font-bold transition-all shadow-md text-xs flex items-center justify-center gap-1"
+              >
+                <Zap className="h-3 w-3" />
+                Accept
+              </button>
             </div>
           </div>
-        </div>
-
-        {/* Actions */}
-        <div className={`bg-gray-50 px-${hasActiveRide ? '4' : '6'} py-${hasActiveRide ? '3' : '4'} rounded-b-xl flex gap-${hasActiveRide ? '2' : '3'}`}>
-          <button
-            onClick={onDecline}
-            className={`flex-1 py-${hasActiveRide ? '2' : '3'} px-${hasActiveRide ? '3' : '4'} bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition-colors ${hasActiveRide ? 'text-xs' : 'text-sm'}`}
-          >
-            Decline
-          </button>
-          <button
-            onClick={onAccept}
-            className={`flex-1 py-${hasActiveRide ? '2' : '3'} px-${hasActiveRide ? '3' : '4'} bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-400 hover:to-green-500 transition-all font-medium shadow-md ${hasActiveRide ? 'text-xs' : 'text-sm'}`}
-          >
-            Accept Ride
-          </button>
-        </div>
-
-        {/* Pulsing indicator when active ride */}
-        {hasActiveRide && (
-          <div className="absolute -top-2 -right-2 h-4 w-4 bg-red-500 rounded-full pulse-ring"></div>
+        ) : (
+          // Accepted - Shrunk Card
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg shadow-xl p-3 border-l-4 border-green-400 flex items-center justify-between">
+            <div className="flex items-center gap-2 min-w-0">
+              <CheckCircle className="h-5 w-5 flex-shrink-0 animate-bounce" />
+              <div className="min-w-0">
+                <p className="font-bold text-xs">{ride.rider?.name}</p>
+                <p className="text-xs opacity-90 truncate">${ride.fare?.total}</p>
+              </div>
+            </div>
+            <span className="text-xs font-bold flex-shrink-0">✓</span>
+          </div>
         )}
       </div>
-    </div>
+    </>
   );
 };
 

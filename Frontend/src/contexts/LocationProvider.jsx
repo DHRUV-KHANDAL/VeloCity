@@ -1,9 +1,9 @@
-// src/contexts/LocationContext.jsx
-import React, { createContext, useState, useCallback } from 'react';
+// src/contexts/LocationProvider.jsx
+import { useState, useCallback, createContext } from 'react';
 
 export const LocationContext = createContext();
 
-export const LocationProvider = ({ children }) => {
+const LocationProvider = ({ children }) => {
   const [userLocation, setUserLocation] = useState(null);
   const [nearbyDrivers, setNearbyDrivers] = useState([]);
   const [searchRadius, setSearchRadius] = useState(10);
@@ -32,4 +32,4 @@ export const LocationProvider = ({ children }) => {
   );
 };
 
-export default LocationContext;
+export default LocationProvider;

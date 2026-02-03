@@ -1,7 +1,15 @@
-// src/contexts/RideContext.jsx
-import React, { createContext, useState, useCallback } from 'react';
+// src/contexts/RideProvider.jsx
+import React, { useState, useCallback, createContext, useContext } from 'react';
 
-export const RideContext = createContext();
+const RideContext = createContext();
+
+export const useRideContext = () => {
+  const context = useContext(RideContext);
+  if (!context) {
+    throw new Error('useRideContext must be used within a RideProvider');
+  }
+  return context;
+};
 
 export const RideProvider = ({ children }) => {
   const [currentRide, setCurrentRide] = useState(null);
@@ -50,4 +58,4 @@ export const RideProvider = ({ children }) => {
   );
 };
 
-export default RideContext;
+export default RideProvider;

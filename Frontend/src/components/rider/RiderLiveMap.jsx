@@ -1,9 +1,9 @@
-// src/components/driver/DriverLiveMap.jsx
+// src/components/rider/RiderLiveMap.jsx
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { MapPin, AlertCircle, Navigation, Clock, DollarSign, Phone, MessageCircle, Navigation2, Users } from 'lucide-react';
+import { MapPin, AlertCircle, Navigation, Clock, DollarSign, Phone, MessageCircle } from 'lucide-react';
 import useGeolocation from '../../hooks/useGeolocation';
 
 // ✅ FIX: Import marker icons as URLs (Vite-compatible)
@@ -20,18 +20,18 @@ L.Icon.Default.mergeOptions({
 });
 
 // Custom icons
-const driverIcon = new L.Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/744/744465.png',
-  iconSize: [40, 40],
-  iconAnchor: [20, 40],
-  popupAnchor: [0, -40]
-});
-
 const riderIcon = new L.Icon({
   iconUrl: 'https://cdn-icons-png.flaticon.com/512/747/747376.png',
   iconSize: [35, 35],
   iconAnchor: [17, 35],
   popupAnchor: [0, -35]
+});
+
+const driverIcon = new L.Icon({
+  iconUrl: 'https://cdn-icons-png.flaticon.com/512/744/744465.png',
+  iconSize: [40, 40],
+  iconAnchor: [20, 40],
+  popupAnchor: [0, -40]
 });
 
 const pickupIcon = new L.Icon({
@@ -48,16 +48,16 @@ const dropoffIcon = new L.Icon({
   popupAnchor: [0, -30]
 });
 
-const DriverLiveMap = ({
-  acceptedRide = null,
+const RiderLiveMap = ({ 
+  activeRide = null,
   driverLocation = null,
   riderLocation = null,
   showTrackingInfo = true,
-  onLocationUpdate = null
+  onCancel = null
 }) => {
   const [mapReady, setMapReady] = useState(false);
-  const [distanceToRider, setDistanceToRider] = useState(null);
-  const [etaToPickup, setEtaToPickup] = useState(null);
+  const [distance, setDistance] = useState(null);
+  const [eta, setEta] = useState(null);
   const [showDetails, setShowDetails] = useState(true);
 
   const mapRef = useRef(null);
@@ -76,7 +76,7 @@ const DriverLiveMap = ({
   }, [defaultCenter, driverLocation, riderLocation]);
 
   useEffect(() => {
-    if (!driverLocation || !acceptedRide?.pickupLocation?.coordinates) {
+    if (!driverLocation || !activeRide?.pickupLocation?.coordinates) {
       return;
     }
 
@@ -84,40 +84,32 @@ const DriverLiveMap = ({
       const calculatedDistance = calculateDistance(
         driverLocation.lat,
         driverLocation.lng,
-        acceptedRide.pickupLocation.coordinates.lat,
-        acceptedRide.pickupLocation.coordinates.lng
+        activeRide.pickupLocation.coordinates.lat,
+        activeRide.pickupLocation.coordinates.lng
       );
 
       const calculatedEta = calculateETA(calculatedDistance);
 
-      setDistanceToRider(calculatedDistance);
-      setEtaToPickup(calculatedEta);
-
-      if (onLocationUpdate) {
-        onLocationUpdate({
-          distance: calculatedDistance,
-          eta: calculatedEta,
-          location: driverLocation
-        });
-      }
+      setDistance(calculatedDistance);
+      setEta(calculatedEta);
     }, 0);
 
     return () => clearTimeout(timer);
-  }, [driverLocation, acceptedRide, calculateDistance, calculateETA, onLocationUpdate]);
+  }, [driverLocation, activeRide, calculateDistance, calculateETA]);
 
   const routeCoordinates = useMemo(() => {
-    if (!driverLocation || !acceptedRide?.pickupLocation?.coordinates) {
+    if (!driverLocation || !activeRide?.pickupLocation?.coordinates) {
       return [];
     }
 
     return [
       [driverLocation.lat, driverLocation.lng],
       [
-        acceptedRide.pickupLocation.coordinates.lat,
-        acceptedRide.pickupLocation.coordinates.lng
+        activeRide.pickupLocation.coordinates.lat,
+        activeRide.pickupLocation.coordinates.lng
       ]
     ];
-  }, [driverLocation, acceptedRide]);
+  }, [driverLocation, activeRide]);
 
   const handleMapLoad = useCallback(() => {
     setMapReady(true);
@@ -145,7 +137,7 @@ const DriverLiveMap = ({
             <Marker position={[driverLocation.lat, driverLocation.lng]} icon={driverIcon}>
               <Popup>
                 <div className="text-sm">
-                  <strong className="text-gray-900">🚗 Your Location</strong><br />
+                  <strong className="text-gray-900">🚗 Driver</strong><br />
                   <span className="text-gray-600">
                     {driverLocation.lat.toFixed(4)}, {driverLocation.lng.toFixed(4)}
                   </span>
@@ -154,8 +146,8 @@ const DriverLiveMap = ({
             </Marker>
             <Circle
               center={[driverLocation.lat, driverLocation.lng]}
-              radius={250}
-              pathOptions={{ color: 'green', fillOpacity: 0.1 }}
+              radius={200}
+              pathOptions={{ color: 'blue', fillOpacity: 0.1 }}
             />
           </>
         )}
@@ -165,7 +157,7 @@ const DriverLiveMap = ({
           <Marker position={[riderLocation.lat, riderLocation.lng]} icon={riderIcon}>
             <Popup>
               <div className="text-sm">
-                <strong className="text-gray-900">👤 Rider Location</strong><br />
+                <strong className="text-gray-900">📍 You are here</strong><br />
                 <span className="text-gray-600">
                   {riderLocation.lat.toFixed(4)}, {riderLocation.lng.toFixed(4)}
                 </span>
@@ -175,70 +167,67 @@ const DriverLiveMap = ({
         )}
 
         {/* Pickup Location */}
-        {acceptedRide?.pickupLocation?.coordinates && (
+        {activeRide?.pickupLocation?.coordinates && (
           <Marker
             position={[
-              acceptedRide.pickupLocation.coordinates.lat,
-              acceptedRide.pickupLocation.coordinates.lng
+              activeRide.pickupLocation.coordinates.lat,
+              activeRide.pickupLocation.coordinates.lng
             ]}
             icon={pickupIcon}
           >
             <Popup>
               <div className="text-sm">
                 <strong className="text-gray-900">📍 Pickup</strong><br />
-                <span className="text-gray-700">{acceptedRide.pickupLocation.address || 'Pickup point'}</span>
+                <span className="text-gray-700">{activeRide.pickupLocation.address || 'Pickup point'}</span>
               </div>
             </Popup>
           </Marker>
         )}
 
         {/* Dropoff Location */}
-        {acceptedRide?.dropoffLocation?.coordinates && (
+        {activeRide?.dropoffLocation?.coordinates && (
           <Marker
             position={[
-              acceptedRide.dropoffLocation.coordinates.lat,
-              acceptedRide.dropoffLocation.coordinates.lng
+              activeRide.dropoffLocation.coordinates.lat,
+              activeRide.dropoffLocation.coordinates.lng
             ]}
             icon={dropoffIcon}
           >
             <Popup>
               <div className="text-sm">
                 <strong className="text-gray-900">🏁 Dropoff</strong><br />
-                <span className="text-gray-700">{acceptedRide.dropoffLocation.address || 'Dropoff point'}</span>
+                <span className="text-gray-700">{activeRide.dropoffLocation.address || 'Dropoff point'}</span>
               </div>
             </Popup>
           </Marker>
         )}
 
-        {/* Route to Pickup */}
+        {/* Route */}
         {routeCoordinates.length > 0 && (
           <Polyline
             positions={routeCoordinates}
-            color="rgb(34, 197, 94)"
-            weight={4}
-            opacity={0.8}
-            dashArray="5, 5"
+            color="rgb(59, 130, 246)"
+            weight={3}
+            opacity={0.7}
+            dashArray="10, 5"
           />
         )}
       </MapContainer>
 
-      {/* Status Badge */}
+      {/* Driver Status Badge */}
       <div className="absolute top-4 left-4 z-40">
-        <div className="bg-purple-100 text-purple-800 rounded-lg shadow-lg px-4 py-2 text-sm font-medium flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-purple-600 animate-pulse"></span>
-          <span>Live Tracking Active</span>
+        <div className="bg-green-100 text-green-800 rounded-lg shadow-lg px-4 py-2 text-sm font-medium flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-green-600 animate-pulse"></span>
+          <span>Driver Arriving</span>
         </div>
       </div>
 
-      {/* Ride Navigation Card */}
-      {showTrackingInfo && acceptedRide && (
+      {/* Tracking Info Card */}
+      {showTrackingInfo && activeRide && (
         <div className="absolute bottom-4 left-4 right-4 md:right-auto md:w-96 bg-white rounded-xl shadow-xl z-40 transition-all duration-300">
           {/* Header */}
-          <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-4 rounded-t-xl flex items-center justify-between">
-            <h3 className="font-bold text-lg flex items-center gap-2">
-              <Navigation2 className="h-5 w-5" />
-              Navigation
-            </h3>
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-t-xl flex items-center justify-between">
+            <h3 className="font-bold text-lg">Driver Details</h3>
             <button
               onClick={() => setShowDetails(!showDetails)}
               className="p-1 hover:bg-white/20 rounded-lg transition-colors"
@@ -249,104 +238,87 @@ const DriverLiveMap = ({
 
           {showDetails && (
             <div className="p-4 space-y-4">
-              {/* Rider Info */}
-              {acceptedRide.rider && (
+              {/* Driver Info */}
+              {activeRide.driver && (
                 <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
-                  <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold">
-                    {acceptedRide.rider.name?.[0] || '?'}
+                  <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                    {activeRide.driver.name?.[0] || '?'}
                   </div>
                   <div className="flex-grow">
-                    <p className="font-bold text-gray-900">{acceptedRide.rider.name || 'Rider'}</p>
-                    <p className="text-sm text-gray-600">⭐ {acceptedRide.rider.rating || '4.8'}</p>
+                    <p className="font-bold text-gray-900">{activeRide.driver.name || 'Driver'}</p>
+                    <p className="text-sm text-gray-600">⭐ {activeRide.driver.rating || '4.8'}</p>
                   </div>
                   <div className="flex gap-2">
                     <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                      <Phone className="h-5 w-5 text-green-600" />
+                      <Phone className="h-5 w-5 text-blue-600" />
                     </button>
                     <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                      <MessageCircle className="h-5 w-5 text-green-600" />
+                      <MessageCircle className="h-5 w-5 text-blue-600" />
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* Route Information */}
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-1">
-                    <MapPin className="h-4 w-4 text-green-600" />
-                  </div>
+              {/* Vehicle Info */}
+              {activeRide.driver?.vehicle && (
+                <div className="flex items-center justify-between pb-4 border-b border-gray-200">
                   <div>
-                    <p className="text-xs text-gray-600 font-semibold">PICKUP</p>
-                    <p className="text-sm text-gray-900 font-bold">{acceptedRide.pickupLocation?.address || 'Pickup location'}</p>
+                    <p className="text-xs text-gray-600">Vehicle</p>
+                    <p className="font-bold text-gray-900">{activeRide.driver.vehicle.model}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-600">License Plate</p>
+                    <p className="font-bold text-gray-900 text-lg">{activeRide.driver.vehicle.plate}</p>
                   </div>
                 </div>
-
-                <div className="ml-4 flex flex-col items-center h-12">
-                  <div className="h-1 w-1 rounded-full bg-gray-400"></div>
-                  <div className="flex-grow w-0.5 bg-gray-300"></div>
-                  <div className="h-1 w-1 rounded-full bg-gray-400"></div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 mt-1">
-                    <MapPin className="h-4 w-4 text-red-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600 font-semibold">DROPOFF</p>
-                    <p className="text-sm text-gray-900 font-bold">{acceptedRide.dropoffLocation?.address || 'Dropoff location'}</p>
-                  </div>
-                </div>
-              </div>
+              )}
 
               {/* Distance & ETA */}
-              <div className="grid grid-cols-3 gap-3 pt-4 border-t border-gray-200">
-                <div className="bg-green-50 rounded-lg p-3 text-center">
-                  <Navigation className="h-5 w-5 text-green-600 mx-auto mb-1" />
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-blue-50 rounded-lg p-3 text-center">
+                  <Navigation className="h-5 w-5 text-blue-600 mx-auto mb-1" />
                   <p className="text-xs text-gray-600">Distance</p>
                   <p className="font-bold text-gray-900">
-                    {distanceToRider ? `${distanceToRider.toFixed(1)} km` : '-'}
+                    {distance ? `${distance.toFixed(1)} km` : '-'}
                   </p>
                 </div>
 
-                <div className="bg-yellow-50 rounded-lg p-3 text-center">
-                  <Clock className="h-5 w-5 text-yellow-600 mx-auto mb-1" />
+                <div className="bg-purple-50 rounded-lg p-3 text-center">
+                  <Clock className="h-5 w-5 text-purple-600 mx-auto mb-1" />
                   <p className="text-xs text-gray-600">ETA</p>
                   <p className="font-bold text-gray-900">
-                    {etaToPickup ? `${Math.round(etaToPickup)} min` : '-'}
+                    {eta ? `${Math.round(eta)} min` : '-'}
                   </p>
                 </div>
 
-                <div className="bg-blue-50 rounded-lg p-3 text-center">
-                  <DollarSign className="h-5 w-5 text-blue-600 mx-auto mb-1" />
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <DollarSign className="h-5 w-5 text-green-600 mx-auto mb-1" />
                   <p className="text-xs text-gray-600">Fare</p>
-                  <p className="font-bold text-blue-600">
-                    ${acceptedRide.fare?.total || '-'}
+                  <p className="font-bold text-green-600">
+                    ${activeRide.fare?.total || '-'}
                   </p>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-2 pt-4 border-t border-gray-200">
-                <button className="py-2 px-4 bg-blue-100 hover:bg-blue-200 text-blue-600 font-bold rounded-lg transition-colors flex items-center justify-center gap-2">
-                  <Phone className="h-4 w-4" />
-                  <span className="hidden sm:inline">Call</span>
+              {/* Cancel Button */}
+              {onCancel && (
+                <button
+                  onClick={onCancel}
+                  className="w-full py-2 px-4 bg-red-100 hover:bg-red-200 text-red-600 font-bold rounded-lg transition-colors"
+                >
+                  Cancel Ride
                 </button>
-                <button className="py-2 px-4 bg-green-100 hover:bg-green-200 text-green-600 font-bold rounded-lg transition-colors flex items-center justify-center gap-2">
-                  <Navigation className="h-4 w-4" />
-                  <span className="hidden sm:inline">Navigate</span>
-                </button>
-              </div>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* Loading State */}
+      {/* Loading */}
       {!mapReady && (
         <div className="absolute inset-0 bg-gray-200 flex items-center justify-center z-30">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-200 border-t-green-600 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-700 font-medium">Loading Map...</p>
           </div>
         </div>
@@ -355,4 +327,4 @@ const DriverLiveMap = ({
   );
 };
 
-export default DriverLiveMap;
+export default RiderLiveMap;
